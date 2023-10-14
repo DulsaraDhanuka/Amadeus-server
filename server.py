@@ -7,7 +7,7 @@ from typing import List
 from dotenv import load_dotenv
 from simplesocks.server import SimpleServer
 
-load_dotenv()
+load_dotenv(override=True)
 
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
