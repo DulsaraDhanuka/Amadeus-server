@@ -48,5 +48,10 @@ callables = {
     "get_current_time": get_current_time
 }
 client = AmadeusClient('192.168.1.200', 4444, 'project_server', "windows_10", functions, callables, server_key=b"KJEodzwQhl7NfZjWcqw4HEgeKV7DrMz-o8xWy4vaW-c=")
-print(client.execute_prompt("What is the current time"))
-client.send_data(json.dumps({'type': 'terminate_server'}).encode('utf-8'))
+while True:
+    prompt = input("> ")
+    if prompt == "TERMINATE":
+        client.send_data(json.dumps({'type': 'terminate_server'}).encode('utf-8'))
+        break
+    
+    print(f"> {client.execute_prompt(prompt)}")
