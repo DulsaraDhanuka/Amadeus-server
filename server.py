@@ -1,11 +1,15 @@
+import os
 import copy
 import json
 import socket
 import openai
-from simplesocks.server import SimpleServer
 from typing import List
+from dotenv import load_dotenv
+from simplesocks.server import SimpleServer
 
-openai.api_key = "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"
+load_dotenv()
+
+openai.api_key = os.getenv('OPENAI_API_KEY')
 
 class AmadeusClient():
     def __init__(self, ip: str, port: int, client_name: str, client_type: str, function_specs: List[dict]) -> None:
