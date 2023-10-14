@@ -30,7 +30,6 @@ class AmadeusClient():
 
 class AmadeusServer(SimpleServer):
     amadeus_clients = {}
-    amadeus_function_specs = []
     
     messages = [{"role": "system", "content": "You're the personal AI assistant of Dulsara Dhanuka (Male). You're name is Amadeus. "}]
 
@@ -38,7 +37,6 @@ class AmadeusServer(SimpleServer):
         super().accept_client_connection(client_socket, client_address, initialization_data)
 
         initialization_data = json.loads(initialization_data)['id']
-        print(f"Client {client_address[0]}:{client_address[1]} connected as {initialization_data}")
 
     def handle_incoming_data(self, client_id: str, client_socket: socket.socket, data: bytes) -> None:
         super().handle_incoming_data(client_id, client_socket, data)
@@ -48,7 +46,7 @@ class AmadeusServer(SimpleServer):
             ip, port = client_socket.getsockname()
             if client_id not in self.amadeus_clients:
                 self.amadeus_clients[client_id] = AmadeusClient(ip, port, client_id, data['client_type'], data['function_specs'])
-                self.amadeus_function_specs.extend(self.amadeus_clients[client_id].function_specs)
+                print(f"Client {ip}:{port} connected as {client_id} ({data['client_type']})")
             else:
                 print(f"Client {client_id} already registered")
         elif data['type'] == "prompt":
@@ -59,6 +57,7 @@ class AmadeusServer(SimpleServer):
 
     def close_client_connection(self, client_id: str, client_socket: socket.socket) -> None:
         super().close_client_connection(client_id, client_socket)
+        del self.amadeus_clients[client_id]
         print(f"Client {client_id} disconnected")
 
     def get_function_response(self, client_socket: socket.socket) -> str:
@@ -69,6 +68,10 @@ class AmadeusServer(SimpleServer):
         return None
 
     def handle_prompt(self, prompt: str, client_id: str, client_socket: socket.socket):
+        function_specs = []
+        for _, client in self.amadeus_clients.items():
+            function_specs.extend(client.function_specs)
+
         self.messages.append({"role": "user", "content": prompt})
         
         local_messages = copy.deepcopy(self.messages)
@@ -77,7 +80,7 @@ class AmadeusServer(SimpleServer):
             completion = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo",
                 messages=local_messages,
-                functions=self.amadeus_function_specs,
+                functions=function_specs,
                 function_call="auto",  # auto is default, but we'll be explicit
             )
             response = completion['choices'][0]['message']
@@ -85,7 +88,8 @@ class AmadeusServer(SimpleServer):
 
             if 'function_call' in response:
                 func_name = self.amadeus_clients[client_id].get_local_function_name(response['function_call']['name'])
-                self.send_client_data(client_socket, json.dumps({'type': 'function_call', 'name': func_name}).encode('utf-8'))
+                func_arguments = json.loads(response['function_call']['arguments'])
+                self.send_client_data(client_socket, json.dumps({'type': 'function_call', 'name': func_name, 'arguments': func_arguments}).encode('utf-8'))
                 
                 func_resp = self.get_function_response(client_socket)
                 local_messages.append({"role": "function", "name": response['function_call']['name'], "content": func_resp})
