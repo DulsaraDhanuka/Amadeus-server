@@ -1,64 +1,46 @@
-import os
 import copy
 import json
 import socket
 import openai
-from typing import List
-from dotenv import load_dotenv
+from client import AmadeusClient
 from simplesocks.server import SimpleServer
-
-load_dotenv(override=True)
-
-openai.api_key = os.getenv('OPENAI_API_KEY')
-
-class AmadeusClient():
-    def __init__(self, ip: str, port: int, client_name: str, client_type: str, function_specs: List[dict]) -> None:
-        self.ip = ip
-        self.port = port
-        self.client_name = client_name
-        self.client_type = client_type
-        
-        self.function_specs = function_specs
-        for function_spec in self.function_specs:
-            function_spec['name'] = self.get_server_function_name(function_spec['name'])
-
-    def get_server_function_name(self, function_name: str) -> str:
-        return f"{self.client_name}_{function_name}"
-
-    def get_local_function_name(self, function_name: str) -> str:
-        return function_name.replace(f"{self.client_name}_", "")
 
 class AmadeusServer(SimpleServer):
     amadeus_clients = {}
     
     messages = [{"role": "system", "content": "You're the personal AI assistant of Dulsara Dhanuka (Male). You're name is Amadeus. "}]
 
+    def __init__(self, host: str = None, port: int = 4444, header_length: int = 10, server_key: bytes = None) -> None:
+        super().__init__(host, port, header_length, server_key)
+        ip_address, port = self._socket.getsockname()
+
     def accept_client_connection(self, client_socket: socket.socket, client_address: tuple, initialization_data: object) -> None:
         super().accept_client_connection(client_socket, client_address, initialization_data)
 
-        initialization_data = json.loads(initialization_data)['id']
+        client_id = json.loads(initialization_data.decode("utf-8"))['id']
 
     def handle_incoming_data(self, client_id: str, client_socket: socket.socket, data: bytes) -> None:
         super().handle_incoming_data(client_id, client_socket, data)
 
+        ip, port = client_socket.getpeername()
         data = json.loads(data.decode('utf-8'))
         if data['type'] == "register_client":
-            ip, port = client_socket.getsockname()
             if client_id not in self.amadeus_clients:
                 self.amadeus_clients[client_id] = AmadeusClient(ip, port, client_id, data['client_type'], data['function_specs'])
-                print(f"Client {ip}:{port} connected as {client_id} ({data['client_type']})")
             else:
-                print(f"Client {client_id} already registered")
+                self.close_client_connection(client_id, client_socket, server_request=True)
         elif data['type'] == "prompt":
             prompt = data['prompt']
             self.handle_prompt(prompt, client_id, client_socket)
         elif data['type'] == "terminate_server":
             self.terminate_server()
 
-    def close_client_connection(self, client_id: str, client_socket: socket.socket) -> None:
+    def close_client_connection(self, client_id: str, client_socket: socket.socket, server_request: bool=False) -> None:
         super().close_client_connection(client_id, client_socket)
         del self.amadeus_clients[client_id]
-        print(f"Client {client_id} disconnected")
+
+        if not server_request:
+            print(f"Client {client_id} disconnected")
 
     def get_function_response(self, client_socket: socket.socket) -> str:
         data = self._receive_data(client_socket).decode('utf-8')
@@ -96,6 +78,3 @@ class AmadeusServer(SimpleServer):
         self.messages.append(response)
         self.send_client_data(client_socket, json.dumps({'type': 'response', 'response': response['content']}).encode('utf-8'))
         self.send_client_data(client_socket, json.dumps({'type': 'eol'}).encode('utf-8'))
-
-server = AmadeusServer(server_key=b"KJEodzwQhl7NfZjWcqw4HEgeKV7DrMz-o8xWy4vaW-c=")
-server.listen()
