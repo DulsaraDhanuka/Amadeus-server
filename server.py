@@ -10,7 +10,7 @@ class AmadeusServer(SimpleServer):
     
     messages = [{"role": "system", "content": "You're the personal AI assistant of Dulsara Dhanuka (Male). You're name is Amadeus. "}]
 
-    def __init__(self, host: str = None, port: int = 4444, header_length: int = 10, server_key: bytes = None) -> None:
+    def __init__(self, host: str = None, port: int = 9999, header_length: int = 10, server_key: bytes = None) -> None:
         super().__init__(host, port, header_length, server_key)
         ip_address, port = self._socket.getsockname()
 
@@ -37,7 +37,8 @@ class AmadeusServer(SimpleServer):
 
     def close_client_connection(self, client_id: str, client_socket: socket.socket, server_request: bool=False) -> None:
         super().close_client_connection(client_id, client_socket)
-        del self.amadeus_clients[client_id]
+        if client_id in self.amadeus_clients:
+            del self.amadeus_clients[client_id]
 
         if not server_request:
             print(f"Client {client_id} disconnected")
@@ -59,12 +60,18 @@ class AmadeusServer(SimpleServer):
         local_messages = copy.deepcopy(self.messages)
         response = False
         while response is False or 'function_call' in response:
-            completion = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
-                messages=local_messages,
-                functions=function_specs,
-                function_call="auto",  # auto is default, but we'll be explicit
-            )
+            if len(function_specs) > 0:
+                completion = openai.ChatCompletion.create(
+                    model="gpt-3.5-turbo",
+                    messages=local_messages,
+                    functions=function_specs,
+                    function_call="auto",  # auto is default, but we'll be explicit
+                )
+            else:
+                completion = openai.ChatCompletion.create(
+                    model="gpt-3.5-turbo",
+                    messages=local_messages,
+                )
             response = completion['choices'][0]['message']
             local_messages.append(response)
 

@@ -74,7 +74,7 @@ callables = {
     "open_desktop_app": open_desktop_app,
 }
 
-client = AmadeusClient('192.168.1.200', 4444, 'project_server', "Windows 10", functions, callables, server_key=b"KJEodzwQhl7NfZjWcqw4HEgeKV7DrMz-o8xWy4vaW-c=")
+client = AmadeusClient('192.168.1.200', 9998, 'project_server', "Windows 10", functions, callables)#, server_key=b"KJEodzwQhl7NfZjWcqw4HEgeKV7DrMz-o8xWy4vaW-c=")
 while True:
     prompt = input("(Dulsara) > ")
     if prompt == "TERMINATE":
