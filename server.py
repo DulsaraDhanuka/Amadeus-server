@@ -18,6 +18,7 @@ class AmadeusServer(SimpleServer):
         super().accept_client_connection(client_socket, client_address, initialization_data)
 
         client_id = json.loads(initialization_data.decode("utf-8"))['id']
+        print(f"Client {client_address[0]}:{client_address[1]} connected as {client_id}")
 
     def handle_incoming_data(self, client_id: str, client_socket: socket.socket, data: bytes) -> None:
         super().handle_incoming_data(client_id, client_socket, data)
@@ -28,6 +29,7 @@ class AmadeusServer(SimpleServer):
             if client_id not in self.amadeus_clients:
                 self.amadeus_clients[client_id] = AmadeusClient(ip, port, client_id, data['client_type'], data['function_specs'])
             else:
+                print(f"Client {client_id} already registered")
                 self.close_client_connection(client_id, client_socket, server_request=True)
         elif data['type'] == "prompt":
             prompt = data['prompt']
